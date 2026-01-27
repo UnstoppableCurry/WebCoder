@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  webcoder:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: webcoder
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-3000}:3000"
+      - "${CORE_PORT:-3001}:3001"
+    volumes:
+      - ai-code-data:/var/lib/webcoder
+      - ai-code-db:/root/.webcoder
+      - ./.env:/app/.env:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - ai-code-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 可选: Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: ai-code-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - webcoder
+    networks:
+      - ai-code-network
+    profiles:
+      - with-nginx
+
+volumes:
+  ai-code-data:
+  ai-code-db:
+
+networks:
+  ai-code-network:
+    driver: bridge
