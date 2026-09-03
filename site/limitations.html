@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>局限 · WebCoder 文档站</title>
+  <meta name="description" content="根据 README、docs 与源码对照列出的缺口：缺失配置符号、缺失文档文件、默认密钥、以及静态站无法运行产品 UI。">
+  <link rel="canonical" href="https://unstoppablecurry.github.io/WebCoder/limitations.html">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#14110d">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="局限 · WebCoder 文档站">
+  <meta property="og:description" content="只记录仓库里对得上的限制与不一致，不补充未证实的能力。">
+  <meta property="og:url" content="https://unstoppablecurry.github.io/WebCoder/limitations.html">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;600&family=Noto+Serif+SC:wght@700&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="assets/favicon.svg" alt="">
+      <span>
+        <span class="brand-mark">WebCoder</span>
+        <span class="brand-sub">静态文档站</span>
+      </span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">菜单</button>
+    <nav id="site-nav" class="site-nav" aria-label="站点">
+      <a href="index.html">问题</a>
+      <a href="architecture.html">架构</a>
+      <a href="installation.html">安装</a>
+      <a href="quickstart.html">入门</a>
+      <a href="deployment.html">部署</a>
+      <a href="limitations.html">局限</a>
+    </nav>
+  </header>
+  <p class="notice">本页是阅读笔记，不是漏洞赏金报告。条目都可以在当前树中复核。</p>
+  <div class="layout">
+    <nav class="rail" aria-label="本页">
+      <p class="kicker">06 / 局限</p>
+      <ol>
+        <li><a href="#static">静态托管边界</a></li>
+        <li><a href="#config">配置导入缺口</a></li>
+        <li><a href="#docs">文档与仓库不一致</a></li>
+        <li><a href="#security">源码中可见的默认项</a></li>
+        <li><a href="#providers">提供商表述</a></li>
+      </ol>
+    </nav>
+    <main id="main">
+      <header class="hero">
+        <div>
+          <p class="kicker">证据边界</p>
+          <h1>能说清的限制，不补未证实的故事</h1>
+          <p class="lede">CHANGELOG 仍有「Unreleased」与日期为 <code>2024-XX-XX</code> 的 1.0.0 节。本站不把该文件当作已发布版本证明。</p>
+        </div>
+      </header>
+
+      <section id="static">
+        <h2>GitHub Pages 跑不了产品</h2>
+        <ul>
+          <li>UI 在 <code>gateway.py</code> 的 Python 字符串里，不是独立前端构建产物。</li>
+          <li>终端需要 Core 的 PTY 子进程与双向 WebSocket。</li>
+          <li>数据库初始化依赖 <code>DATABASE_PATH</code>（见下一节）和 SQL 迁移。</li>
+        </ul>
+      </section>
+
+      <section id="config">
+        <h2><code>src/config.py</code> 与其它模块的导入差</h2>
+        <p>当前 <code>config.py</code> 定义了路径、端口、<code>JWT_*</code>、Claude/Kimi/Codex 密钥 URL、以及 <code>DEFAULT_AI_PROVIDER</code> / <code>PROVIDER_CONFIGS</code>。下列名字在其它文件中 <code>from config import ...</code>，但<strong>未</strong>出现在该配置文件正文中：</p>
+        <table>
+          <thead>
+            <tr><th>符号</th><th>引用位置（示例）</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>AI_PROVIDER</code></td><td>core.py</td></tr>
+            <tr><td><code>DATABASE_PATH</code></td><td>database.py</td></tr>
+            <tr><td><code>CORE_WS_URL</code></td><td>gateway.py</td></tr>
+            <tr><td><code>DEEPSEEK_API_KEY</code> / <code>DEEPSEEK_BASE_URL</code> / <code>DEEPSEEK_MODEL</code></td><td>deepseek_service.py, butler_agent.py</td></tr>
+            <tr><td><code>EMAIL_ENABLED</code> 及 SMTP 相关</td><td>email_service.py；安装文档也列出</td></tr>
+            <tr><td><code>AGENT_HEARTBEAT_INTERVAL</code></td><td>project_agent.py</td></tr>
+            <tr><td><code>DEFAULT_AUTH_DAYS</code></td><td>auth.py, admin.py</td></tr>
+            <tr><td><code>VERIFICATION_CODE_EXPIRE_MINUTES</code></td><td>crud.py</td></tr>
+          </tbody>
+        </table>
+        <p>按现状，这些导入在解释器加载对应模块时会失败，除非另有未纳入本仓库的配置层。这是阅读源码得到的限制，不是性能结论。</p>
+      </section>
+
+      <section id="docs">
+        <h2>文档引用了、仓库里没有的文件</h2>
+        <ul>
+          <li>README：<code>docs/configuration.md</code>、<code>docs/api.md</code></li>
+          <li>installation：<code>.env.example</code>、<code>requirements-dev.txt</code>、<code>scripts/start-dev.sh</code>、<code>usage.md</code></li>
+          <li>deployment：<code>scripts/backup.sh</code>、systemd unit 文件、完整 k8s 清单、Compose nginx 用的 <code>docker/nginx.conf</code></li>
+          <li>克隆 URL 普遍为 <code>github.com/yourusername/webcoder</code></li>
+          <li>Dockerfile 创建 <code>/var/lib/ai-code-platform/projects</code>，配置默认项目根是 <code>/var/lib/webcoder/projects</code></li>
+          <li>installation 验证 <code>/api/health</code>，Gateway 未见该路由</li>
+        </ul>
+      </section>
+
+      <section id="security">
+        <h2>源码中写明、部署时需自行处理的默认项</h2>
+        <ul>
+          <li><code>JWT_SECRET_KEY</code> 默认 <code>change-me-in-production</code></li>
+          <li>默认管理员 <code>admin</code> / <code>admin123</code></li>
+          <li>Gateway 与 Core 的 CORS <code>allow_origins=["*"]</code></li>
+          <li>创建进程默认 <code>skip_permissions=True</code>，会带上各 CLI 的跳过权限参数</li>
+        </ul>
+        <p>文档中的防火墙、Fail2Ban、Let's Encrypt 只是 Markdown 步骤，仓库没有对应的自动化验收。</p>
+      </section>
+
+      <section id="providers">
+        <h2>提供商：配置存在 ≠ 本站验证过</h2>
+        <p><code>PROVIDER_CONFIGS</code> 键为 <code>claude</code>、<code>kimi</code>、<code>codex</code>。Core 对 Kimi 会话目录有专门分支，对 Claude 有空的参数分支；没有对 Codex 的对等会话逻辑注释。管家与阶段分析走 DeepSeek，但 <code>config.py</code> 未定义 DeepSeek 变量。本站不宣称任一提供商已在生产环境或本 CI 中跑通。</p>
+        <p>README 功能列表中的「移动优先」「安全可靠」等形容词，这里只当作项目自述，没有独立评测数据。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p><a href="index.html">返回首页</a> · <a href="https://github.com/UnstoppableCurry/WebCoder">仓库</a></p>
+    </div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

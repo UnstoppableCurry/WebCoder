@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebCoder 文档站 · 问题与范围</title>
+  <meta name="description" content="WebCoder 是一套 FastAPI 双进程服务：在浏览器中通过 WebSocket 终端调用本机 AI CLI。本站为静态说明，不包含可运行产品界面。">
+  <link rel="canonical" href="https://unstoppablecurry.github.io/WebCoder/">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#14110d">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="WebCoder 文档站 · 问题与范围">
+  <meta property="og:description" content="静态产品与架构说明。界面由 Gateway 后端生成，无法在 GitHub Pages 上运行。">
+  <meta property="og:url" content="https://unstoppablecurry.github.io/WebCoder/">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;600&family=Noto+Serif+SC:wght@700&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "WebCoder",
+    "description": "FastAPI 双进程平台：Gateway 提供 Web UI 与业务 API，Core 用 PTY 管理 AI CLI 进程。",
+    "codeRepository": "https://github.com/UnstoppableCurry/WebCoder",
+    "programmingLanguage": ["Python", "JavaScript"],
+    "runtimePlatform": "FastAPI",
+    "license": "https://github.com/UnstoppableCurry/WebCoder/blob/main/LICENSE",
+    "url": "https://unstoppablecurry.github.io/WebCoder/"
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="assets/favicon.svg" alt="">
+      <span>
+        <span class="brand-mark">WebCoder</span>
+        <span class="brand-sub">静态文档站</span>
+      </span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">菜单</button>
+    <nav id="site-nav" class="site-nav" aria-label="站点">
+      <a href="index.html">问题</a>
+      <a href="architecture.html">架构</a>
+      <a href="installation.html">安装</a>
+      <a href="quickstart.html">入门</a>
+      <a href="deployment.html">部署</a>
+      <a href="limitations.html">局限</a>
+    </nav>
+  </header>
+  <p class="notice">本站只说明仓库里已经写明的内容。产品界面由 <code>src/gateway.py</code> 以 HTML 字符串返回，依赖 Core 进程与 WebSocket，<strong>不能</strong>在 GitHub Pages 上当作实时演示运行。</p>
+  <div class="layout">
+    <nav class="rail" aria-label="本页">
+      <p class="kicker">01 / 问题</p>
+      <ol>
+        <li><a href="#what">它要解决什么</a></li>
+        <li><a href="#not-demo">本站不是演示</a></li>
+        <li><a href="#evidence">材料范围</a></li>
+        <li><a href="#stack">仓库里能看见的栈</a></li>
+      </ol>
+    </nav>
+    <main id="main">
+      <section class="hero">
+        <div>
+          <p class="kicker">GitHub Pages 说明站</p>
+          <h1>把本机 AI CLI 接到浏览器终端</h1>
+          <p class="lede">README 将项目表述为「浏览器里的 AI 编程伙伴」：用 FastAPI 提供 Web 界面、JWT 多用户与项目隔离，Core 服务通过 PTY 拉起配置中的 CLI 命令（如 <code>claude</code>、<code>kimi</code>、<code>codex</code>）。</p>
+        </div>
+        <div class="hero-meta" aria-label="来自仓库的标签">
+          <span class="chip">Python 3.10+（README）</span>
+          <span class="chip">FastAPI ≥ 0.104</span>
+          <span class="chip">MIT License</span>
+          <span class="chip">端口 3000 / 3001</span>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="https://github.com/UnstoppableCurry/WebCoder">GitHub 仓库</a>
+          <a class="btn btn-ghost" href="architecture.html">查看架构</a>
+          <a class="btn btn-ghost" href="limitations.html">先读局限</a>
+        </div>
+      </section>
+
+      <section id="what">
+        <h2>问题陈述（来自 README 与源码职责注释）</h2>
+        <p>README 列出的目标能力包括：在 Web 终端里实时交互、针对移动端的界面、多用户认证授权、会话与项目隔离、文件浏览与编辑、邮件通知，以及「智能管家」式的任务推进与状态监控。</p>
+        <p>源码把系统拆成两层：</p>
+        <ul>
+          <li><code>src/core.py</code>：内部能力层，默认端口 <code>3001</code>。注释写明职责是 PTY 进程创建/停止/重启、WebSocket 终端、项目目录、输出缓冲、webhook 回调。</li>
+          <li><code>src/gateway.py</code>：对外业务层，默认端口 <code>3000</code>。注释写明职责是 Web UI、邮件、管家、状态与业务逻辑、带认证的 WebSocket 代理、接收 Core webhook、代理系统管理。</li>
+        </ul>
+        <p>因此，要使用产品本身，需要在本机或服务器上同时运行这两个 Python 进程（见 <code>scripts/start.sh</code> 与 <code>docker/entrypoint.sh</code>），而不是打开本静态站点。</p>
+      </section>
+
+      <section id="not-demo">
+        <h2>为什么这里没有「在线试用」</h2>
+        <div class="callout-warn callout">
+          <p>登录页、主应用页、管理后台均由 Gateway 的 <code>HTMLResponse</code> 函数返回（路由 <code>/</code>、<code>/app</code>、<code>/admin</code>）。终端依赖 xterm 静态资源与 <code>/ws/{project_name}</code> 代理到 Core。Pages 只能托管静态文件，无法提供 PTY、SQLite 初始化或 AI CLI 子进程。</p>
+        </div>
+        <p>本站也<strong>没有</strong>产品截图：仓库中不存在经过核实的界面截图资源，页面不会用占位图冒充运行效果。</p>
+      </section>
+
+      <section id="evidence">
+        <h2>本站使用的材料</h2>
+        <div class="split">
+          <article class="panel">
+            <h3>采用</h3>
+            <ul>
+              <li><code>README.md</code></li>
+              <li><code>docs/installation.md</code>、<code>docs/quickstart.md</code>、<code>docs/deployment.md</code></li>
+              <li><code>src/</code> 中与架构相关的模块、路由与配置</li>
+              <li><code>scripts/start.sh</code>、<code>docker-compose.yml</code>、<code>docker/Dockerfile</code>、<code>requirements.txt</code>、<code>LICENSE</code></li>
+            </ul>
+          </article>
+          <article class="panel panel-dark">
+            <h3>不采用 / 不编造</h3>
+            <ul>
+              <li>不存在的 <code>docs/configuration.md</code>、<code>docs/api.md</code>（README 有链接，仓库中无文件）</li>
+              <li>用户数、性能数字、生产可用性承诺</li>
+              <li>把配置表中的提供商写成「已验证全部可用」</li>
+              <li>虚构截图、评价或案例</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="stack">
+        <h2>与 README 功能列表对应的源码位置</h2>
+        <table>
+          <thead>
+            <tr><th>README 表述</th><th>仓库中可见的实现位置</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>多 AI 提供商（Claude、Kimi、Codex）</td><td><code>src/config.py</code> 的 <code>PROVIDER_CONFIGS</code> 为三个名字配置了 CLI 命令与环境变量；<code>src/core.py</code> 按 <code>provider</code> 执行对应命令。注释写「支持 Claude, Kimi」；Codex 出现在配置表中。管家侧另有 DeepSeek HTTP 调用（<code>src/services/deepseek_service.py</code>）。</td></tr>
+            <tr><td>Web 终端 / WebSocket</td><td>Core 与 Gateway 均有 WebSocket；Gateway <code>/ws/{project_name}</code> 代理到 Core，前端页面引用 <code>static/xterm.min.js</code>。</td></tr>
+            <tr><td>多用户 / JWT</td><td><code>src/auth/</code>、<code>src/api/auth.py</code>；JWT 默认密钥在配置中为 <code>change-me-in-production</code>。</td></tr>
+            <tr><td>智能管家 / 任务推进</td><td><code>src/agents/supervisor.py</code>、<code>project_agent.py</code>、<code>butler_agent.py</code> 与 <code>src/api/butler.py</code>。</td></tr>
+            <tr><td>邮件通知</td><td><code>src/services/email_service.py</code>；安装文档给出 <code>EMAIL_ENABLED</code> 等变量（这些名字在 <code>config.py</code> 当前文件中未见定义，见局限页）。</td></tr>
+            <tr><td>文件管理</td><td><code>src/api/files.py</code> 提供列出、读写、上传下载与部分 Git 接口。</td></tr>
+          </tbody>
+        </table>
+        <p class="source">上表只映射「文档声称的能力」到「源码中存在的模块」，不构成功能验收。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>中文为主。许可证：MIT（<code>LICENSE</code>，版权行写明 AI Code Platform Contributors）。</p>
+      <p><a href="https://github.com/UnstoppableCurry/WebCoder">源码仓库</a> · 预定地址 <a href="https://unstoppablecurry.github.io/WebCoder/">unstoppablecurry.github.io/WebCoder</a></p>
+    </div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

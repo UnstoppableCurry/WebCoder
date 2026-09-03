@@ -2,6 +2,10 @@
 
 你的浏览器里的AI编程伙伴。支持多AI提供商（Claude、Kimi、Codex），让编程更高效。
 
+**文档站点（静态说明，不含可运行产品界面）：** [https://unstoppablecurry.github.io/WebCoder/](https://unstoppablecurry.github.io/WebCoder/)
+
+产品 UI 由 FastAPI Gateway 在运行时生成，需要本机或服务器上的 Core/Gateway 进程，不能在 GitHub Pages 上当作实时演示打开。
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -61,6 +65,7 @@ cp .env.example .env
 
 ## 📖 文档
 
+- [GitHub Pages 文档站](https://unstoppablecurry.github.io/WebCoder/)（问题 / 架构 / 安装 / 入门 / 部署 / 局限）
 - [安装指南](docs/installation.md)
 - [配置说明](docs/configuration.md)
 - [API文档](docs/api.md)

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>部署 · WebCoder 文档站</title>
+  <meta name="description" content="转写 docs/deployment.md 中的 Docker Compose、systemd 与 Kubernetes 示例。这些是文档步骤，不是生产承诺。">
+  <link rel="canonical" href="https://unstoppablecurry.github.io/WebCoder/deployment.html">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#14110d">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="部署 · WebCoder 文档站">
+  <meta property="og:description" content="来自 docs/deployment.md 的部署方式摘录，并标注仓库中缺失的配套文件。">
+  <meta property="og:url" content="https://unstoppablecurry.github.io/WebCoder/deployment.html">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;600&family=Noto+Serif+SC:wght@700&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="assets/favicon.svg" alt="">
+      <span>
+        <span class="brand-mark">WebCoder</span>
+        <span class="brand-sub">静态文档站</span>
+      </span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">菜单</button>
+    <nav id="site-nav" class="site-nav" aria-label="站点">
+      <a href="index.html">问题</a>
+      <a href="architecture.html">架构</a>
+      <a href="installation.html">安装</a>
+      <a href="quickstart.html">入门</a>
+      <a href="deployment.html">部署</a>
+      <a href="limitations.html">局限</a>
+    </nav>
+  </header>
+  <p class="notice">文档标题含「生产环境配置」。下面只复述文档写出的命令与清单，不声称本仓库已完成生产加固或负载验证。</p>
+  <div class="layout">
+    <nav class="rail" aria-label="本页">
+      <p class="kicker">05 / 部署</p>
+      <ol>
+        <li><a href="#compose">Docker Compose</a></li>
+        <li><a href="#systemd">systemd</a></li>
+        <li><a href="#k8s">Kubernetes 摘录</a></li>
+        <li><a href="#ops">文档中的运维条目</a></li>
+      </ol>
+    </nav>
+    <main id="main">
+      <header class="hero">
+        <div>
+          <p class="kicker">docs/deployment.md</p>
+          <h1>部署教程（按文档，非背书）</h1>
+          <p class="lede">文档列出三种方式：Docker Compose（文中写「推荐」）、systemd 双服务、以及一份单副本的 Kubernetes YAML 示例。</p>
+        </div>
+      </header>
+
+      <section id="compose">
+        <h2>方式一：Docker Compose</h2>
+        <p>文档假设 Ubuntu 22.04，安装 <code>docker.io</code>、<code>docker-compose</code>、<code>git</code>，将用户加入 docker 组。然后克隆占位仓库、复制 <code>.env</code>、<code>docker-compose up -d</code>。</p>
+        <p>Nginx 示例监听 80，反代 <code>http://localhost:3000</code>，并设置 WebSocket 相关头与 <code>proxy_read_timeout 86400</code>。SSL 示例使用 certbot。</p>
+        <p>仓库中的 Compose 文件还把数据卷挂到 <code>/var/lib/webcoder</code> 与 <code>/root/.webcoder</code>，并把主机 <code>./.env</code> 只读挂进容器。Dockerfile 基础镜像为 <code>python:3.11-slim</code>，entrypoint 启动两个 Python 进程。</p>
+      </section>
+
+      <section id="systemd">
+        <h2>方式二：systemd</h2>
+        <p>文档给出两个 unit：<code>ai-code-core.service</code> 执行 <code>venv/bin/python src/core.py</code>；<code>ai-code-gateway.service</code> 在 core 之后启动 <code>src/gateway.py</code>。工作目录示例为 <code>/opt/webcoder</code>，用户 <code>ai-code</code>。仓库中没有现成的这两个 service 文件，需要按文档自行放置。</p>
+      </section>
+
+      <section id="k8s">
+        <h2>方式三：Kubernetes 示例要点</h2>
+        <p>文档 YAML 使用 <code>replicas: 1</code>，同一 Pod 内 core（3001）与 gateway（3000）两个容器，镜像名为占位 <code>your-registry/webcoder:latest</code>。Service 类型 <code>LoadBalancer</code>，端口 3000。密钥通过 <code>secretKeyRef</code> 名为 <code>ai-code-secrets</code> 的 <code>kimi-api-key</code>。仓库中没有配套的 k8s 清单文件，仅存在于 Markdown。</p>
+      </section>
+
+      <section id="ops">
+        <h2>文档中的加固 / 监控 / 备份 / 更新</h2>
+        <ul>
+          <li>ufw：默认拒绝入站，放行 22/80/443。</li>
+          <li>安装 fail2ban；logrotate 示例路径 <code>/opt/webcoder/logs/*.log</code>。</li>
+          <li>监控：安装 <code>prometheus-node-exporter</code>，文中未给出完整告警规则文件。</li>
+          <li>备份：复制 <code>~/.webcoder/ai_code_platform.db</code>，打包 <code>/var/lib/webcoder/projects</code>，删除 30 天前文件。更新流程引用 <code>./scripts/backup.sh</code>——该脚本当前不在仓库中。</li>
+          <li>故障排查：<code>systemctl status</code> / <code>journalctl</code>、检查 3000/3001、<code>htop</code> 与磁盘。</li>
+        </ul>
+        <p>Core 使用 <code>os.fork</code> 与 <code>pty</code>，文档系统列表以 Linux / macOS / WSL 为主；未提供原生 Windows 服务说明。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p><a href="https://github.com/UnstoppableCurry/WebCoder/blob/main/docs/deployment.md">原始 deployment.md</a> · <a href="limitations.html">局限与证据边界</a></p>
+    </div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>
