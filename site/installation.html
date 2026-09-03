@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>安装 · WebCoder 文档站</title>
+  <meta name="description" content="转写 docs/installation.md 的系统要求、三种安装方式、环境变量与验证命令。仓库中缺失的文件会单独标明。">
+  <link rel="canonical" href="https://unstoppablecurry.github.io/WebCoder/installation.html">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#14110d">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="安装 · WebCoder 文档站">
+  <meta property="og:description" content="来自 docs/installation.md 的安装步骤，并对照仓库实际文件。">
+  <meta property="og:url" content="https://unstoppablecurry.github.io/WebCoder/installation.html">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;600&family=Noto+Serif+SC:wght@700&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="assets/favicon.svg" alt="">
+      <span>
+        <span class="brand-mark">WebCoder</span>
+        <span class="brand-sub">静态文档站</span>
+      </span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">菜单</button>
+    <nav id="site-nav" class="site-nav" aria-label="站点">
+      <a href="index.html">问题</a>
+      <a href="architecture.html">架构</a>
+      <a href="installation.html">安装</a>
+      <a href="quickstart.html">入门</a>
+      <a href="deployment.html">部署</a>
+      <a href="limitations.html">局限</a>
+    </nav>
+  </header>
+  <p class="notice">下列步骤摘自 <a href="https://github.com/UnstoppableCurry/WebCoder/blob/main/docs/installation.md">docs/installation.md</a>。文档中的克隆地址仍是占位符 <code>yourusername/webcoder</code>；实际远程为 <code>UnstoppableCurry/WebCoder</code>。</p>
+  <div class="layout">
+    <nav class="rail" aria-label="本页">
+      <p class="kicker">03 / 安装</p>
+      <ol>
+        <li><a href="#req">系统要求</a></li>
+        <li><a href="#ways">三种方式</a></li>
+        <li><a href="#env">.env 示例</a></li>
+        <li><a href="#verify">验证与 FAQ</a></li>
+      </ol>
+    </nav>
+    <main id="main">
+      <header class="hero">
+        <div>
+          <p class="kicker">docs/installation.md</p>
+          <h1>安装指南（按文档原文结构）</h1>
+          <p class="lede">文档声明最低配置为 2 核 / 4GB / 20GB 磁盘，系统 Ubuntu 20.04+、macOS 12+ 或 Windows WSL2；推荐 4 核 / 8GB / 50GB 与稳定外网。这些是文档数字，仓库内没有配套基准测试。</p>
+        </div>
+      </header>
+
+      <section id="req">
+        <h2>系统要求与环境准备</h2>
+        <p>文档要求 Python 3.10+ 与 Node.js 16+（示例使用 Node 18 源），并安装 AI CLI：</p>
+<pre><code>npm install -g @anthropic-ai/claude-code
+pip install kimi-cli
+npm install -g @openai/codex   # 文档标记为可选</code></pre>
+        <p>Dockerfile 在构建时安装了 Claude Code 与 kimi-cli，未出现 Codex 的 npm 安装行。</p>
+      </section>
+
+      <section id="ways">
+        <h2>方式一：直接安装</h2>
+<pre><code>git clone https://github.com/yourusername/webcoder.git
+cd webcoder
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python -c "from src.db.database import init_db; init_db()"
+./scripts/start.sh</code></pre>
+        <div class="callout callout-warn">
+          <p>当前仓库<strong>没有</strong> <code>.env.example</code>。有 <code>requirements.txt</code> 与 <code>scripts/start.sh</code>。<code>start.sh</code> 会在缺少 <code>venv</code> 时创建它，并后台启动 Core 与 Gateway。</p>
+        </div>
+
+        <h2>方式二：Docker</h2>
+<pre><code>git clone https://github.com/yourusername/webcoder.git
+cd webcoder
+cp .env.example .env
+docker-compose up -d</code></pre>
+        <p>仓库含 <code>docker-compose.yml</code>：服务名 <code>webcoder</code>，构建 <code>docker/Dockerfile</code>，映射 3000/3001，健康检查请求 <code>http://localhost:3001/health</code>。可选 profile <code>with-nginx</code> 引用 <code>./docker/nginx.conf</code>，该文件目前不在仓库中。</p>
+
+        <h2>方式三：开发模式</h2>
+        <p>文档要求 <code>requirements-dev.txt</code>、<code>pre-commit install</code> 与 <code>./scripts/start-dev.sh</code>。这些文件当前均未出现在仓库中。</p>
+      </section>
+
+      <section id="env">
+        <h2>文档中的环境变量示例</h2>
+<pre><code>DEFAULT_AI_PROVIDER=kimi
+KIMI_API_KEY=your-kimi-api-key-here
+KIMI_API_URL=https://api.moonshot.cn/v1
+CLAUDE_API_KEY=your-claude-api-key-here
+CLAUDE_API_URL=https://api.anthropic.com
+JWT_SECRET_KEY=your-super-secret-jwt-key
+EMAIL_ENABLED=false
+EMAIL_SMTP_SERVER=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_SENDER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password</code></pre>
+        <p>密钥获取步骤文档指向 <a href="https://platform.moonshot.cn/">Moonshot 开放平台</a> 与 <a href="https://console.anthropic.com/">Anthropic Console</a>。<code>src/config.py</code> 另外读取 <code>CODEX_API_KEY</code> / <code>CODEX_API_URL</code>。</p>
+      </section>
+
+      <section id="verify">
+        <h2>文档中的验证命令</h2>
+<pre><code>curl http://localhost:3001/health
+curl http://localhost:3000/api/health
+claude --version
+kimi --version</code></pre>
+        <p>Core 源码中存在 <code>/health</code>。Gateway 源码中未找到 <code>/api/health</code>。</p>
+        <h3>文档 FAQ（原文要点）</h3>
+        <ul>
+          <li><code>command not found: kimi</code>：把 pip bin 加入 PATH，或 <code>pip install --user kimi-cli</code>。</li>
+          <li><code>Permission denied</code>：<code>chmod +x scripts/*.sh</code>，<code>mkdir -p ~/.webcoder</code>。</li>
+          <li>端口占用：<code>lsof -i:3000</code> / <code>3001</code>，或导出 <code>GATEWAY_PORT</code> / <code>CORE_PORT</code>。</li>
+        </ul>
+        <p>文档「下一步」链到 <code>configuration.md</code>、<code>usage.md</code>、<code>api.md</code>，这三个文件当前不在 <code>docs/</code> 中。原始 Markdown 仍保留在仓库，本站不覆盖它们。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p><a href="quickstart.html">快速入门</a> · <a href="https://github.com/UnstoppableCurry/WebCoder/blob/main/docs/installation.md">原始 installation.md</a></p>
+    </div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>

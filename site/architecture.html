@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>架构 · WebCoder 文档站</title>
+  <meta name="description" content="依据 src/core.py、src/gateway.py 与 agents、db、api 模块整理的 WebCoder 双进程架构说明。">
+  <link rel="canonical" href="https://unstoppablecurry.github.io/WebCoder/architecture.html">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#14110d">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="架构 · WebCoder 文档站">
+  <meta property="og:description" content="Core 3001 与 Gateway 3000 的职责、路由与数据存储，全部来自仓库源码。">
+  <meta property="og:url" content="https://unstoppablecurry.github.io/WebCoder/architecture.html">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&family=Noto+Sans+SC:wght@400;600&family=Noto+Serif+SC:wght@700&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <img src="assets/favicon.svg" alt="">
+      <span>
+        <span class="brand-mark">WebCoder</span>
+        <span class="brand-sub">静态文档站</span>
+      </span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">菜单</button>
+    <nav id="site-nav" class="site-nav" aria-label="站点">
+      <a href="index.html">问题</a>
+      <a href="architecture.html">架构</a>
+      <a href="installation.html">安装</a>
+      <a href="quickstart.html">入门</a>
+      <a href="deployment.html">部署</a>
+      <a href="limitations.html">局限</a>
+    </nav>
+  </header>
+  <p class="notice">示意图表示源码中的进程与调用关系，不是运行截图，也不表示已在生产环境验证。</p>
+  <div class="layout">
+    <nav class="rail" aria-label="本页">
+      <p class="kicker">02 / 架构</p>
+      <ol>
+        <li><a href="#processes">双进程</a></li>
+        <li><a href="#data">数据与认证</a></li>
+        <li><a href="#agents">代理</a></li>
+        <li><a href="#routes">路由一览</a></li>
+        <li><a href="#tree">目录对照</a></li>
+      </ol>
+    </nav>
+    <main id="main">
+      <header class="hero">
+        <div>
+          <p class="kicker">源码结构</p>
+          <h1>Gateway 对外，Core 管 PTY</h1>
+          <p class="lede">启动脚本会先后拉起 <code>python src/core.py</code> 与 <code>python src/gateway.py</code>。配置默认 <code>CORE_PORT=3001</code>、<code>GATEWAY_PORT=3000</code>。</p>
+        </div>
+      </header>
+
+      <section id="processes">
+        <h2>运行时拓扑（按源码阅读）</h2>
+        <div class="schema" role="img" aria-label="浏览器连接 Gateway，Gateway 代理到 Core，Core 通过 PTY 执行 CLI">
+          <div class="panel panel-dark">
+            <div class="schema-node">浏览器 · 请求 Gateway 返回的 HTML（/, /app, /admin）· 静态 xterm · WebSocket /ws/{project}</div>
+            <div class="schema-arrow" aria-hidden="true">↓ HTTP / WS（JWT 查询参数）</div>
+            <div class="schema-node">Gateway · FastAPI title「Claude Mobile Gateway v10」· 业务 API、webhook、Supervisor</div>
+            <div class="schema-arrow" aria-hidden="true">↓ httpx / websockets 到 CORE_URL · webhook 回到 GATEWAY /webhook</div>
+            <div class="schema-node">Core · FastAPI title「Claude Code Core v10」· fork + pty · exec CLI · /health · /providers</div>
+            <div class="schema-arrow" aria-hidden="true">↓ os.execvpe(command)</div>
+            <div class="schema-node">PROVIDER_CONFIGS 中的命令：claude / kimi / codex（外加管家路径上的 DeepSeek HTTP API）</div>
+          </div>
+        </div>
+        <p>Core 的 <code>create_process</code> 在子进程中 <code>chdir</code> 到项目目录，把提供商环境变量写入 <code>env</code>，再执行配置里的命令。对 Kimi，若目录会话不存在，continue 模式会回退为 new。默认 <code>skip_permissions=True</code> 时会附加各提供商配置中的 skip 参数（例如 Claude 的 <code>--dangerously-skip-permissions</code>）。</p>
+      </section>
+
+      <section id="data">
+        <h2>存储、用户与默认管理员</h2>
+        <p>Gateway 启动时调用 <code>init_db()</code>，按 <code>src/db/migrations/*.sql</code> 顺序执行。可见表包括管理员、用户、验证码、refresh token、项目、代理状态、输出历史、管家消息/事件/计划、Git 配置等。</p>
+        <p><code>ensure_default_admin()</code> 在不存在用户名为 <code>admin</code> 的管理员时，创建口令 <code>admin123</code>。启动脚本同样打印该组合，并提示登录后立即修改。</p>
+        <p>项目文件默认根目录来自环境变量 <code>PROJECTS_BASE_DIR</code>（代码默认 <code>/var/lib/webcoder/projects</code>）；数据目录 <code>DATA_DIR</code> 默认 <code>~/.webcoder</code>。</p>
+        <p>认证模块使用 PyJWT 与 argon2。Access token 默认 15 分钟，Refresh 默认 7 天。</p>
+      </section>
+
+      <section id="agents">
+        <h2>代理系统</h2>
+        <ul>
+          <li><strong>Supervisor</strong>：单例，启动时恢复「运行中」项目的 ProjectAgent，并跑任务循环与健康检查循环。</li>
+          <li><strong>ProjectAgent</strong>：注释描述约 10 秒心跳读取 Core 输出，调用 DeepSeek 判断环节，并可向进程写入指令。</li>
+          <li><strong>ButlerAgent</strong>：根据输出生成推进提示词；Gateway 另有 <code>/api/butler/chat</code> 走 <code>deepseek_service.butler_chat</code>。</li>
+        </ul>
+        <p>Git 相关注释写明：版本管理已集成到 ProjectAgent 心跳，不再使用独立 git_worker。</p>
+      </section>
+
+      <section id="routes">
+        <h2>Gateway 挂载的 API 前缀</h2>
+        <table>
+          <thead>
+            <tr><th>前缀</th><th>模块</th><th>源码中出现的能力</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>/api/auth</code></td><td>auth.py</td><td>注册验证码、登录、刷新、登出、当前用户、重置/修改密码</td></tr>
+            <tr><td><code>/api/admin</code></td><td>admin.py</td><td>管理员登录、用户 CRUD、延期、禁用</td></tr>
+            <tr><td><code>/api/projects</code></td><td>projects.py / files.py / butler.py</td><td>项目启停、代理动作、文件与 Git、管家处理</td></tr>
+            <tr><td><code>/api/notifications</code></td><td>notifications.py</td><td>通知列表与已读</td></tr>
+            <tr><td><code>/api/supervisor/status</code></td><td>gateway.py</td><td>Supervisor 统计</td></tr>
+            <tr><td><code>/webhook</code></td><td>gateway.py</td><td>接收 Core 进程事件</td></tr>
+          </tbody>
+        </table>
+        <p>Core 另提供 <code>GET /health</code>、<code>GET /providers</code> 以及按项目名的 start/stop/restart/input/status/output 与 WebSocket。安装文档还写了 <code>GET /api/health</code>；当前 <code>gateway.py</code> 中未检索到该路由，见局限页。</p>
+      </section>
+
+      <section id="tree">
+        <h2>README 目录树与实际布局</h2>
+        <p>README 画出 <code>src/core/</code>、<code>src/gateway/</code> 等子包。当前仓库对应的是单文件 <code>src/core.py</code>、<code>src/gateway.py</code>，另有 <code>src/agents/</code>、<code>src/api/</code>、<code>src/auth/</code>、<code>src/db/</code>、<code>src/services/</code>、<code>src/config.py</code>。静态终端资源在仓库根目录 <code>static/</code>，Gateway 则尝试挂载相对自身的 <code>src/static</code>（若该路径不存在则跳过）。</p>
+        <p class="source">依赖见 <code>requirements.txt</code>：FastAPI、uvicorn、websockets、httpx、aiosqlite、PyJWT、argon2-cffi、aiosmtplib、pydantic、python-dotenv 等。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p><a href="index.html">返回问题页</a> · <a href="https://github.com/UnstoppableCurry/WebCoder/tree/main/src">浏览 src/</a></p>
+    </div>
+  </footer>
+  <script src="assets/site.js"></script>
+</body>
+</html>
